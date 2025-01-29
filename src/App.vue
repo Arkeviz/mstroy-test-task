@@ -1,7 +1,8 @@
 <script setup lang="ts">
   import type { ColDef } from "ag-grid-enterprise"
   import type { TTreeItem } from "@/components/MSTree/types"
-  import { ref, useTemplateRef } from "vue"
+  import { provide, ref, useTemplateRef } from "vue"
+  import { IsEditModeKey } from "@/constants"
   import MSTree from "@/components/MSTree/MSTree.vue"
 
   const columns: ColDef<TTreeItem>[] = [
@@ -9,13 +10,17 @@
       headerName: '№ п/n',
       field: 'treeIndex',
       width: 150,
+      valueGetter: (p) =>
+        p?.node?.rowIndex != null
+          ? p.node.rowIndex + 1
+          : null
     },
     {
       headerName: 'Наименование',
       field: 'label',
       flex: 1,
       get editable() {
-        return editMode.value
+        return isEditMode.value
       }
     }
   ]
@@ -40,42 +45,38 @@
     { id: 8, parent: 4, label: 'Айтем 8' },
   ]
 
-  const editMode = ref(false)
+  const isEditMode = ref(false)
+  const toggleMode = () => {
+    isEditMode.value = isEditMode.value
+  }
+
+  provide(IsEditModeKey, {
+    isEditMode,
+    toggleMode
+  })
 
   const treeRef = useTemplateRef<InstanceType<typeof MSTree>>('treeRef')
 </script>
 
 <template>
-  <main class="container">
-    <div class="tree-container">
-      <MSTree
-        ref="treeRef"
-        class="ms-grid"
-        :columns
-        :data
-        :editMode
-        :groupColumn
-        expand-all
-      />
-    </div>
+  <main class="main-container">
+    <MSTree
+      ref="treeRef"
+      :columns
+      :data
+      :isEditMode
+      :groupColumn
+      expand-all
+    />
   </main>
 </template>
 
 <style scoped>
-  .container {
+  .main-container {
     height: 100%;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .tree-container {
-    width: 900px;
-  }
-
-  .ms-grid {
-    width: 100%;
-    height: 700px;
   }
 </style>

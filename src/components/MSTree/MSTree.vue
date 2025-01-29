@@ -1,10 +1,11 @@
 <script setup lang="ts">
-  import type { ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
+  import type { CellEditRequestEvent, ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
   import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
   import { computed, ref, shallowRef } from "vue"
   import { AgGridVue } from "ag-grid-vue3"
   import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
   import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
+  import MSTreeControls from "@/components/MSTree/components/MSTreeControls.vue"
 
   ModuleRegistry.registerModules([AllEnterpriseModule])
   LicenseManager.setLicenseKey("")
@@ -18,13 +19,7 @@
     data: TTreeItem[]
     /** Раскрыть всё по умолчанию */
     expandAll?: boolean
-    /** Режим работы (просмотр/редактирование) */
-    editMode: boolean
   }>()
-
-  const gridApi = shallowRef<GridApi | null>(null)
-
-  const getDataPath = ref<GetDataPath>((data) => data?.path)
 
   const tree = ref(new TreeStore(props.data))
   const computedTreeData = computed(
@@ -41,14 +36,23 @@
     })
   )
 
+  const computedExpandAll = computed(() => props?.expandAll ? -1 : 0)
+
+  const gridApi = shallowRef<GridApi | null>(null)
   const onGridReady = (params: GridReadyEvent) => {
     gridApi.value = params.api;
     // Переставляю столбец "№ п/п" в начало таблицы
-    // TODO найти нормальное решение
+    // при инициализации слайдера
+    // TODO при смене режима возвращается обратно, найти нормальное решение
     gridApi.value.moveColumnByIndex(1,0)
   }
 
-  const computedExpandAll = computed(() => props?.expandAll ? -1 : 0)
+  const getDataPath = ref<GetDataPath>((data) => data?.path)
+
+  const handleEdit = (event: CellEditRequestEvent) => {
+    if (event.source !== 'edit') return
+    tree.value.updateItem({ ...event.data, label: event.newValue })
+  }
 
   defineExpose({
     addItem: (item: TTreeItem) => tree.value.addItem(item),
@@ -58,17 +62,35 @@
 </script>
 
 <template>
-  <AgGridVue
-    :columnDefs="props.columns"
-    :rowData="computedTreeData"
-    :auto-group-column-def="props.groupColumn"
-    tree-data
-    :getDataPath="getDataPath"
-    :groupDefaultExpanded="computedExpandAll"
-    @grid-ready="onGridReady"
-  >
-  </AgGridVue>
+  <div class="tree-container">
+    <MSTreeControls class="control-panel" />
+    <AgGridVue
+      :columnDefs="props.columns"
+      :rowData="computedTreeData"
+      :auto-group-column-def="props.groupColumn"
+      :getDataPath="getDataPath"
+      :groupDefaultExpanded="computedExpandAll"
+      tree-data
+      readOnlyEdit
+      class="ms-tree"
+      @grid-ready="onGridReady"
+      @cell-edit-request="handleEdit"
+    />
+  </div>
 </template>
 
 <style scoped>
+  .tree-container {
+    width: 900px;
+  }
+
+  .ms-tree {
+    width: 100%;
+    height: 450px;
+  }
+
+  .control-panel {
+    width: 100%;
+    margin-bottom: 8px;
+  }
 </style>

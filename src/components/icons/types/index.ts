@@ -1,0 +1,1 @@
+export type TIconsNames = 'arrow-redo' | 'arrow-undo'
