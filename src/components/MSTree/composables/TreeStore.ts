@@ -1,4 +1,4 @@
-import type { TNodeId, TTreeItem } from "@/components/MSGrid/types"
+import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
 
 export default class TreeStore {
   /** Оригинальный массив */

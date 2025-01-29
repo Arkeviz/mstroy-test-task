@@ -1,8 +1,8 @@
 <script setup lang="ts">
   import type { ColDef } from "ag-grid-enterprise"
-  import type { TTreeItem } from "@/components/MSGrid/types"
+  import type { TTreeItem } from "@/components/MSTree/types"
   import { ref, useTemplateRef } from "vue"
-  import MSTree from "@/components/MSGrid/MSTree.vue"
+  import MSTree from "@/components/MSTree/MSTree.vue"
 
   const columns: ColDef<TTreeItem>[] = [
     {

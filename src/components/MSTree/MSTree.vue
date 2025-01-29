@@ -1,10 +1,10 @@
 <script setup lang="ts">
   import type { ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
-  import type { TNodeId, TTreeItem } from "@/components/MSGrid/types"
+  import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
   import { computed, ref, shallowRef } from "vue"
   import { AgGridVue } from "ag-grid-vue3"
   import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
-  import TreeStore from "@/components/MSGrid/composables/TreeStore.ts"
+  import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
 
   ModuleRegistry.registerModules([AllEnterpriseModule])
   LicenseManager.setLicenseKey("")
