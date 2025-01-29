@@ -6,7 +6,15 @@ export default class TreeStore {
   /** Рабочий массив */
   readonly tree: TTreeItem[] = []
 
+  /**
+   * Заглушка для генерации id,
+   * которая явно не будет работать с uuid :)
+   */
+  private currentId: number = 0
+
   constructor(data: TTreeItem[]) {
+    let maxId = 0
+
     this.treeData = data
     const children = new Map<TNodeId, TNodeId[]>()
 
@@ -21,7 +29,14 @@ export default class TreeStore {
         children.set(item.parent, [item.id])
       else
         directChild.push(item.id)
+
+      const isIdNaN = isNaN(+item.id)
+      if (isIdNaN) maxId = 1_000_000_000_000
+      else if (maxId <= +item.id) maxId = +item.id + 1
     }
+
+    // Заполняем currentId для генерации id при добавлении элемента
+    this.currentId = maxId
 
     // Заполняем children у элементов
     for (const id of children.keys()) {
@@ -33,6 +48,10 @@ export default class TreeStore {
           : []
       })
     }
+  }
+
+  private generateId() {
+    return this.currentId++
   }
 
   /**
@@ -120,17 +139,30 @@ export default class TreeStore {
    * Добавить новый элемент
    * @param item
    */
-  addItem(item: TTreeItem) {
+  addItem(item: Partial<TTreeItem>) {
     if (!item) throw new Error('item должен соответствовать типу')
-    else if (typeof item.id !== 'string' && typeof item.id !== 'number')
-      throw new Error('id у item должен быть числом или строкой')
 
-    this.tree.push(item)
+    const itemHasId = item.id != null
 
-    // Добавляем новый элемент в children у родителя
-    if (item.parent) {
-      const parent = this.getItem(item.parent)
-      parent?.children?.push(item.id)
+    if (itemHasId) {
+      this.tree.push(item)
+      // Добавляем новый элемент в children у родителя
+      if (item.parent) {
+        const parent = this.getItem(item.parent)
+        parent?.children?.push(item.id)
+      }
+
+      return item
+    } else {
+      const id = this.generateId()
+      this.tree.push({ ...item, label: `Новый айтем ${id}`, id })
+      // Добавляем новый элемент в children у родителя
+      if (item.parent) {
+        const parent = this.getItem(item.parent)
+        parent?.children?.push(id)
+      }
+
+      return { ...item, label: `Новый айтем ${id}`, id }
     }
   }
 
@@ -159,6 +191,7 @@ export default class TreeStore {
    * @param item
    */
   updateItem(item: TTreeItem) {
+    console.warn('item', item)
     if (!item) throw new Error('item должен соответствовать типу')
     else if (!item.id) {
       throw new Error('id у item должен быть числом или строкой')

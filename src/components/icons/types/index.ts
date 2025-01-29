@@ -1,1 +1,1 @@
-export type TIconsNames = 'arrow-redo' | 'arrow-undo'
+export type TIconsNames = 'arrow-redo' | 'arrow-undo' | 'add-rounded' | 'cancel-rounded'

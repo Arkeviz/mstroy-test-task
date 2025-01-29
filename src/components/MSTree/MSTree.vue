@@ -1,13 +1,14 @@
 <script setup lang="ts">
-  import type { CellEditRequestEvent, ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
-  import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
-  import { computed, ref, shallowRef } from "vue"
-  import { AgGridVue } from "ag-grid-vue3"
-  import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
-  import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
-  import MSTreeControls from "@/components/MSTree/components/MSTreeControls.vue"
+import type { CellEditRequestEvent, ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
+import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
+import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
+import { computed, provide, ref, shallowRef } from "vue"
+import { AgGridVue } from "ag-grid-vue3"
+import { itemEditKey } from "@/constants"
+import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
+import MSTreeControls from "@/components/MSTree/components/MSTreeControls.vue"
 
-  ModuleRegistry.registerModules([AllEnterpriseModule])
+ModuleRegistry.registerModules([AllEnterpriseModule])
   LicenseManager.setLicenseKey("")
 
   const props = defineProps<{
@@ -41,18 +42,39 @@
   const gridApi = shallowRef<GridApi | null>(null)
   const onGridReady = (params: GridReadyEvent) => {
     gridApi.value = params.api;
-    // Переставляю столбец "№ п/п" в начало таблицы
-    // при инициализации слайдера
-    // TODO при смене режима возвращается обратно, найти нормальное решение
-    gridApi.value.moveColumnByIndex(1,0)
   }
 
   const getDataPath = ref<GetDataPath>((data) => data?.path)
 
-  const handleEdit = (event: CellEditRequestEvent) => {
+  const addItem = (data: TTreeItem) => {
+    console.warn('data ADD', data)
+    tree.value.addItem({ parent: data.parent })
+  }
+
+  const deleteItem = (data: TTreeItem) => {
+    console.warn('data REMOVE', data)
+    const deletedChildren = tree.value.getAllChildren(data.id)
+    tree.value.removeItem(data.id)
+  }
+
+  const editItem = (event: CellEditRequestEvent) => {
+    console.warn('data UPDATE', event)
     if (event.source !== 'edit') return
     tree.value.updateItem({ ...event.data, label: event.newValue })
   }
+
+  const onUndoChange = () => {
+    console.warn('undo')
+  }
+
+  const onRedoChange = () => {
+    console.warn('redo')
+  }
+
+  provide(itemEditKey, {
+    addItem,
+    deleteItem
+  })
 
   defineExpose({
     addItem: (item: TTreeItem) => tree.value.addItem(item),
@@ -63,7 +85,11 @@
 
 <template>
   <div class="tree-container">
-    <MSTreeControls class="control-panel" />
+    <MSTreeControls
+      class="control-panel"
+      @undo-change="onUndoChange"
+      @redo-change="onRedoChange"
+    />
     <AgGridVue
       :columnDefs="props.columns"
       :rowData="computedTreeData"
@@ -74,7 +100,7 @@
       readOnlyEdit
       class="ms-tree"
       @grid-ready="onGridReady"
-      @cell-edit-request="handleEdit"
+      @cell-edit-request="editItem"
     />
   </div>
 </template>
@@ -92,5 +118,10 @@
   .control-panel {
     width: 100%;
     margin-bottom: 8px;
+  }
+
+  /* Стили для cellRenderer категорий */
+  :deep(.ag-group-value) {
+    width: 100%;
   }
 </style>

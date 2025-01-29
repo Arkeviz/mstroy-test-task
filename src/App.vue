@@ -4,12 +4,14 @@
   import { provide, ref, useTemplateRef } from "vue"
   import { IsEditModeKey } from "@/constants"
   import MSTree from "@/components/MSTree/MSTree.vue"
+  import CategoryCellRenderer from "@/components/MSTree/components/CategoryCellRenderer.vue"
 
   const columns: ColDef<TTreeItem>[] = [
     {
       headerName: '№ п/n',
       field: 'treeIndex',
-      width: 150,
+      lockPosition: 'left',
+      width: 125,
       valueGetter: (p) =>
         p?.node?.rowIndex != null
           ? p.node.rowIndex + 1
@@ -28,10 +30,12 @@
   const groupColumn: ColDef = {
     headerName: 'Категория',
     flex: 1,
+    cellRenderer: "agGroupCellRenderer",
     cellRendererParams: {
       suppressCount: true,
+      innerRenderer: CategoryCellRenderer,
+      get isEditable() { return isEditMode.value } ,
     },
-    valueGetter: (p) => p.data?.children?.length ? 'Группа' : 'Элемент'
   }
 
   const data: TTreeItem[] = [

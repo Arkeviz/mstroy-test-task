@@ -4,17 +4,17 @@
   import MsIcon from "@/components/icons/MsIcon.vue"
 
   const emits = defineEmits<{
-    redo: []
-    undo: []
+    redoChange: []
+    undoChange: []
   }>()
 
   const { isEditMode, toggleMode } = inject(IsEditModeKey)
 
   const onUndo = () => {
-    emits('undo')
+    emits('undoChange')
   }
   const onRedo = () => {
-    emits('redo')
+    emits('redoChange')
   }
 </script>
 
