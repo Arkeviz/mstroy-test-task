@@ -19,7 +19,7 @@
   <div class="ms-tree__cell-renderer_category">
     <p class="ms-tree__category-name">{{ categoryName }}</p>
 
-    <div v-if="true" class="ms-tree__cell-buttons">
+    <div v-if="isEditable" class="ms-tree__cell-buttons">
       <button
         class="ms-tree__category_cell-button button_transparent"
         @click="addItem(params.data)"
