@@ -2,33 +2,36 @@ import type { TNodeId, TTreeItem } from "@/components/MSGrid/types"
 
 export default class TreeStore {
   /** Оригинальный массив */
-  readonly treeData: TTreeItem[] = []
-  /** Дерево (Map) */
-  readonly tree = new Map<TNodeId, TTreeItem>()
+  private readonly treeData: TTreeItem[] = []
+  /** Рабочий массив */
+  readonly tree: TTreeItem[] = []
 
   constructor(data: TTreeItem[]) {
     this.treeData = data
-    const children: { [i: TNodeId]: number[] } = {}
+    const children = new Map<TNodeId, TNodeId[]>()
 
     for (const item of this.treeData) {
-      this.addItem({ ...item, id: +item.id, children: [] })
+      this.addItem({ ...item, children: [] })
 
       if (!item.parent) continue
 
       // Запоминаем id детей для дальнейшего добавления
-      if (!children[+item.parent]) {
-        children[+item.parent] = [+item.id]
-      } else {
-        children[+item.parent].push(+item.id)
-      }
+      const directChild = children.get(item.parent)
+      if (!directChild)
+        children.set(item.parent, [item.id])
+      else
+        directChild.push(item.id)
     }
 
     // Заполняем children у элементов
-    for (const id of Object.keys(children)) {
-      const item = this.getItem(+id) as TTreeItem
-      // this.tree.set(+id, { ...item, children: children[+id] })
-      console.warn(id, item)
-      this.updateItem({ ...item, children: children[+id] })
+    for (const id of children.keys()) {
+      const item = this.getItem(id) as TTreeItem
+      this.updateItem({
+        ...item,
+        children: !!children.get(id)
+          ? children.get(id)
+          : []
+      })
     }
   }
 
@@ -44,7 +47,16 @@ export default class TreeStore {
    * @param id
    */
   getItem(id: TNodeId): TTreeItem | undefined {
-    return this.tree.get(+id)
+    return this.tree.find(item => item.id === id)
+  }
+
+  /**
+   * Получить позицию элемента в массиве
+   * @param id
+   * @private
+   */
+  private getItemIndex(id: TNodeId) {
+    return this.tree.findIndex((item) => item.id === id)
   }
 
   /**
@@ -65,7 +77,7 @@ export default class TreeStore {
    * @param id
    */
   getAllChildren(id: TNodeId): TTreeItem[] {
-    const children: TTreeItem[] = []
+    const allChildren: TTreeItem[] = []
 
     const findChildren = (nodeId: TNodeId) => {
       const node = this.getItem(nodeId);
@@ -73,16 +85,16 @@ export default class TreeStore {
       if (!node.children?.length) return [node]
 
       // Получаем все дочерние узлы
-      const directChildren = this.getChildren(nodeId)
-      if (directChildren?.length) {
-        children.push(...directChildren)
+      const children = this.getChildren(nodeId)
+      if (children?.length) {
+        allChildren.push(...children)
         // Рекурсивно ищем дочерние узлы для каждого дочернего узла
-        directChildren.forEach(child => findChildren(child?.id))
+        children.forEach(child => findChildren(child?.id))
       }
     }
 
     findChildren(id)
-    return children
+    return allChildren
   }
 
   /**
@@ -105,49 +117,54 @@ export default class TreeStore {
   }
 
   /**
-   * Добавить новый элемент в дерево
+   * Добавить новый элемент
    * @param item
    */
   addItem(item: TTreeItem) {
     if (!item) throw new Error('item должен соответствовать типу')
-    else if (!item.id)
+    else if (typeof item.id !== 'string' && typeof item.id !== 'number')
       throw new Error('id у item должен быть числом или строкой')
 
-    this.tree.set(item.id, item)
+    this.tree.push(item)
 
     // Добавляем новый элемент в children у родителя
     if (item.parent) {
-      this.getItem(item.parent)?.children?.push(item.id)
+      const parent = this.getItem(item.parent)
+      parent?.children?.push(item.id)
     }
   }
 
   /**
-   * Убрать элемент и все его дочерние элементы из дерева
+   * Убрать элемент и все его дочерние элементы
    * @param id
    */
   removeItem(id: TNodeId) {
-    if (!id) throw new Error('id должен быть числом или строкой')
+    if (typeof id !== 'string' && typeof id !== 'number')
+      throw new Error('id должен быть числом или строкой')
 
     const item = this.getItem(id)
-    if (!item) throw new Error(`Объекта с id=${id} не существует`)
+    if (!item) return
 
     if (item?.children?.length) {
       const children = this.getAllChildren(item.id)
       children.forEach((i) => this.removeItem(i.id))
     }
 
-    this.tree.delete(id)
+    const index = this.getItemIndex(id)
+    this.tree.splice((index),1)
   }
 
   /**
-   * Обновить объект в дереве
+   * Обновить объект в массиве
    * @param item
    */
   updateItem(item: TTreeItem) {
     if (!item) throw new Error('item должен соответствовать типу')
-    else if (!item.id)
+    else if (!item.id) {
       throw new Error('id у item должен быть числом или строкой')
+    }
 
-    this.tree.set(item.id, item)
+    const index = this.getItemIndex(item.id)
+    this.tree[index] = item
   }
 }
