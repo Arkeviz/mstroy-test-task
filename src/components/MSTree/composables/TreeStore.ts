@@ -19,9 +19,14 @@ export default class TreeStore {
     const children = new Map<TNodeId, TNodeId[]>()
 
     for (const item of this.treeData) {
-      this.addItem({ ...item, children: [] })
 
-      if (!item.parent) continue
+      if (item.parent == null) {
+        item.positionIndex = this.tree.length
+        this.addItem({ ...item, children: [] })
+        continue
+      }
+
+      this.addItem({ ...item, children: [] })
 
       // Запоминаем id детей для дальнейшего добавления
       const directChild = children.get(item.parent)
@@ -38,13 +43,17 @@ export default class TreeStore {
     // Заполняем currentId для генерации id при добавлении элемента
     this.currentId = maxId
 
-    // Заполняем children у элементов
-    for (const id of children.keys()) {
-      const item = this.getItem(id) as TTreeItem
+    for (const node of this.tree) {
+      const positionIndex =
+        node.parent == null
+          ? this.getItemIndex(node.id)
+          : this.getChildren(node.parent)?.findIndex((i) => i?.id == node.id)
+
       this.updateItem({
-        ...item,
-        children: !!children.get(id)
-          ? children.get(id)
+        ...node,
+        positionIndex,
+        children: !!children.get(node.id)
+          ? children.get(node.id)
           : []
       })
     }
@@ -65,7 +74,7 @@ export default class TreeStore {
    * Получить элемент дерева
    * @param id
    */
-  getItem(id: TNodeId): TTreeItem | undefined {
+  getItem(id: TNodeId | null): TTreeItem | undefined {
     return this.tree.find(item => item.id === id)
   }
 
@@ -136,33 +145,54 @@ export default class TreeStore {
   }
 
   /**
-   * Добавить новый элемент
+   * Добавляет элемент в `tree`.
+   * Если есть родитель - также добавляет в `children`.
+   * При добавлении сохраняет позицию (если такова имелась)
+   * @param item
+   * @param parent
+   * @private
+   */
+  private addItemWithPosition(item: TTreeItem, parent: TTreeItem | undefined) {
+    const itemHasParent = !!this.getItem(item.parent)
+
+    if (itemHasParent) {
+      if (item.positionIndex >= (parent?.children?.length ?? 0))
+        parent?.children?.push(item.id)
+      else
+        parent?.children?.splice(item.positionIndex, 0, item.id)
+
+      this.tree.push(item)
+
+      return
+    }
+
+    if (item.positionIndex >= this.tree.length)
+      this.tree.push(item)
+    else
+      this.tree.splice(item.positionIndex, 0, item)
+  }
+
+  /**
+   * Добавить элемент
    * @param item
    */
-  addItem(item: Partial<TTreeItem>) {
+  addItem(item: TTreeItem) {
     if (!item) throw new Error('item должен соответствовать типу')
 
+    const parent = this.getItem(item.parent)
     const itemHasId = item.id != null
 
     if (itemHasId) {
-      this.tree.push(item)
-      // Добавляем новый элемент в children у родителя
-      if (item.parent) {
-        const parent = this.getItem(item.parent)
-        parent?.children?.push(item.id)
-      }
+      this.addItemWithPosition(item, parent)
 
       return item
     } else {
       const id = this.generateId()
-      this.tree.push({ ...item, label: `Новый айтем ${id}`, id })
-      // Добавляем новый элемент в children у родителя
-      if (item.parent) {
-        const parent = this.getItem(item.parent)
-        parent?.children?.push(id)
-      }
+      const newItem = { ...item, label: `Новый айтем ${id}`, id }
 
-      return { ...item, label: `Новый айтем ${id}`, id }
+      this.addItemWithPosition(newItem, parent)
+
+      return newItem
     }
   }
 
@@ -177,13 +207,23 @@ export default class TreeStore {
     const item = this.getItem(id)
     if (!item) return
 
-    if (item?.children?.length) {
-      const children = this.getAllChildren(item.id)
-      children.forEach((i) => this.removeItem(i.id))
+    // Удаляем элемент из children родителя
+    if (item.parent) {
+      const parent = this.getItem(item.parent)
+      if (parent && parent.children) {
+        parent.children = parent.children.filter(childId => childId !== id)
+      }
     }
 
+    // Удаляем все дочерние элементы
+    if (item.children?.length) {
+      const children = this.getAllChildren(item.id)
+      children.forEach((child) => this.removeItem(child.id))
+    }
+
+    // Удаляем элемент из основного массива
     const index = this.getItemIndex(id)
-    this.tree.splice((index),1)
+    this.tree.splice(index, 1)
   }
 
   /**
@@ -191,7 +231,6 @@ export default class TreeStore {
    * @param item
    */
   updateItem(item: TTreeItem) {
-    console.warn('item', item)
     if (!item) throw new Error('item должен соответствовать типу')
     else if (!item.id) {
       throw new Error('id у item должен быть числом или строкой')

@@ -47,7 +47,7 @@
     { id: 6, parent: '2', label: 'Айтем 6' },
     { id: 7, parent: 4, label: 'Айтем 7' },
     { id: 8, parent: 4, label: 'Айтем 8' },
-  ]
+  ] as TTreeItem[]
 
   const isEditMode = ref(false)
   const toggleMode = () => {

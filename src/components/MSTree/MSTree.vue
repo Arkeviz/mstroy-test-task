@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { CellEditRequestEvent, ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
-import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
-import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
-import { computed, provide, ref, shallowRef } from "vue"
-import { AgGridVue } from "ag-grid-vue3"
-import { itemEditKey } from "@/constants"
-import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
-import MSTreeControls from "@/components/MSTree/components/MSTreeControls.vue"
+  import type { CellEditRequestEvent, ColDef, ColGroupDef, GetDataPath, GridApi, GridReadyEvent } from "ag-grid-enterprise"
+  import type { TNodeId, TTreeItem } from "@/components/MSTree/types"
+  import { ETreeAction } from "@/components/MSTree/types/changeHistory.ts"
+  import { computed, provide, ref, shallowRef } from "vue"
+  import { AllEnterpriseModule, LicenseManager, ModuleRegistry } from "ag-grid-enterprise"
+  import { AgGridVue } from "ag-grid-vue3"
+  import { itemEditKey } from "@/constants"
+  import useChangesHistory from "@/components/MSTree/composables/useChangesHistory.ts"
+  import TreeStore from "@/components/MSTree/composables/TreeStore.ts"
+  import MSTreeControls from "@/components/MSTree/components/MSTreeControls.vue"
 
-ModuleRegistry.registerModules([AllEnterpriseModule])
+  ModuleRegistry.registerModules([AllEnterpriseModule])
   LicenseManager.setLicenseKey("")
 
   const props = defineProps<{
@@ -24,14 +26,13 @@ ModuleRegistry.registerModules([AllEnterpriseModule])
 
   const tree = ref(new TreeStore(props.data))
   const computedTreeData = computed(
-    () => tree.value.tree.map((node, index) => {
+    () => tree.value.tree.map((node) => {
       const path = tree.value.getAllParents(node.id).reduce((acc, item) => {
         acc.push(item.id)
         return acc
       }, [] as TNodeId[])
       return ({
         ...node,
-        treeIndex: index + 1,
         path: path.reverse().join(''),
       })
     })
@@ -46,34 +47,55 @@ ModuleRegistry.registerModules([AllEnterpriseModule])
 
   const getDataPath = ref<GetDataPath>((data) => data?.path)
 
+  const {
+    changesHistory,
+    currentChangeIndex,
+    storeChange,
+    revertChange,
+    applyChange
+  } = useChangesHistory(tree)
+
+  // TODO после первого добавления, начинает создаваться лишняя строка без даты,
+  //  в которую группируется новый элемент. Пока хз как поправить, не нащупал
   const addItem = (data: TTreeItem) => {
-    console.warn('data ADD', data)
-    tree.value.addItem({ parent: data.parent })
+    const positionIndex = tree.value.getChildren(data.id)!.length
+    const newItem = tree.value.addItem({
+      parent: data.id,
+      children: [] as TNodeId[],
+      positionIndex
+    } as TTreeItem)
+    storeChange({ action: ETreeAction.ADD, newItem })
   }
 
-  const deleteItem = (data: TTreeItem) => {
-    console.warn('data REMOVE', data)
+  const removeItem = (data: TTreeItem) => {
     const deletedChildren = tree.value.getAllChildren(data.id)
+    storeChange({ action: ETreeAction.REMOVE, oldItem: data, deletedChildren })
     tree.value.removeItem(data.id)
   }
 
   const editItem = (event: CellEditRequestEvent) => {
-    console.warn('data UPDATE', event)
     if (event.source !== 'edit') return
+    storeChange({
+      action: ETreeAction.UPDATE,
+      oldItem: event.data,
+      newItem: {
+        ...event.data,
+        label: event.newValue
+      }
+    })
     tree.value.updateItem({ ...event.data, label: event.newValue })
   }
 
   const onUndoChange = () => {
-    console.warn('undo')
+    revertChange()
   }
-
   const onRedoChange = () => {
-    console.warn('redo')
+    applyChange()
   }
 
   provide(itemEditKey, {
     addItem,
-    deleteItem
+    removeItem,
   })
 
   defineExpose({
@@ -86,6 +108,8 @@ ModuleRegistry.registerModules([AllEnterpriseModule])
 <template>
   <div class="tree-container">
     <MSTreeControls
+      :changesHistory
+      :currentChangeIndex
       class="control-panel"
       @undo-change="onUndoChange"
       @redo-change="onRedoChange"

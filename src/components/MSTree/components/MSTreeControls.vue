@@ -1,7 +1,13 @@
 <script setup lang="ts">
-  import { inject } from "vue"
+  import { computed, inject } from "vue"
   import { IsEditModeKey } from "@/constants"
   import MsIcon from "@/components/icons/MsIcon.vue"
+  import type {THistoryChangeItem} from "@/components/MSTree/types/changeHistory.ts";
+
+  const { changesHistory, currentChangeIndex } = defineProps<{
+    changesHistory: THistoryChangeItem[]
+    currentChangeIndex: number
+  }>()
 
   const emits = defineEmits<{
     redoChange: []
@@ -9,6 +15,9 @@
   }>()
 
   const { isEditMode, toggleMode } = inject(IsEditModeKey)
+
+  const isUndoDisabled = computed(() => currentChangeIndex < 0)
+  const isRedoDisabled = computed(() => currentChangeIndex >= changesHistory?.length - 1)
 
   const onUndo = () => {
     emits('undoChange')
@@ -22,10 +31,18 @@
   <div class="controls">
     <button class="controls__button_edit button_transparent" @click="isEditMode = !isEditMode">Режим: {{ isEditMode ? 'редактирование' : 'просмотр' }}</button>
     <div v-if="isEditMode" class="controls__buttons">
-      <button @click="onUndo" class="controls__button_undo button_icon">
+      <button
+        :disabled="isUndoDisabled"
+        class="controls__button_undo button_icon"
+        @click="onUndo"
+      >
         <MsIcon class="ms-icon" icon="arrow-undo"></MsIcon>
       </button>
-      <button @click="onRedo" class="controls__button_redo button_icon">
+      <button
+        :disabled="isRedoDisabled"
+        class="controls__button_redo button_icon"
+        @click="onRedo"
+      >
         <MsIcon class="ms-icon" icon="arrow-redo"></MsIcon>
       </button>
     </div>
@@ -44,6 +61,10 @@
       border: lightgreen;
       color: dodgerblue;
       cursor: pointer;
+    }
+
+    .button_icon:disabled {
+      opacity: 0.5;
     }
   }
 

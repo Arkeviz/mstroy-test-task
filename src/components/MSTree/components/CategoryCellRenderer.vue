@@ -12,7 +12,7 @@
   const categoryName = computed(() => params.data?.children?.length ? 'Группа' : 'Элемент')
   const isEditable = computed(() => params.isEditable)
 
-  const { addItem, deleteItem } = inject(itemEditKey)
+  const { addItem, removeItem } = inject(itemEditKey)
 </script>
 
 <template>
@@ -28,7 +28,7 @@
       </button>
       <button
         class="ms-tree__category_cell-button button_transparent"
-        @click="deleteItem(params.data)"
+        @click="removeItem(params.data)"
       >
         <MsIcon icon="cancel-rounded" class="ms-tree__cancel-rounded-icon" />
       </button>
@@ -54,7 +54,7 @@
 
   .ms-tree__cell-buttons {
     display: flex;
-    gap: 0 4px;
+    gap: 0 2px;
   }
 
   .ms-tree__add-rounded-icon {
